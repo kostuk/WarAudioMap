@@ -8,6 +8,7 @@ import tensorflow_io as tfio
 
 
 DATASET_PATH = 'data'
+SOUND_LENGTH = 32000
 
 data_dir = pathlib.Path(DATASET_PATH)
 
@@ -16,12 +17,17 @@ commands = commands[ commands != 'none']
 print('Commands:', commands)
 
 filenames = tf.io.gfile.glob(str(data_dir) + '/*/*')
+
+    
+    
 filenames = tf.random.shuffle(filenames)
 num_samples = len(filenames)
 print('Number of total examples:', num_samples)
 print('Number of examples per label:',
       len(tf.io.gfile.listdir(str(data_dir/commands[0]))))
 print('Example file tensor:', filenames[0])
+
+
 
 train_files = filenames[:100]
 val_files = filenames[100: 100 + 40]
@@ -55,6 +61,7 @@ def get_waveform_and_label(file_path):
   label = get_label(file_path)
   audio_binary = tf.io.read_file(file_path)
   waveform = decode_audio(audio_binary)
+  waveform = np.resize(waveform,(SOUND_LENGTH))
   return waveform, label
 
 AUTOTUNE = tf.data.AUTOTUNE
@@ -83,11 +90,11 @@ for i, (audio, label) in enumerate(waveform_ds.take(n)):
 plt.show()
 
 def get_spectrogram(waveform):
-  # Zero-padding for an audio waveform with less than 16,000 samples.
-  input_len = 16000
+  # Zero-padding for an audio waveform with less than 32,000 samples.
+  input_len = SOUND_LENGTH
   waveform = waveform[:input_len]
   zero_padding = tf.zeros(
-      [16000] - tf.shape(waveform),
+      [SOUND_LENGTH] - tf.shape(waveform),
       dtype=tf.float32)
   # Cast the waveform tensors' dtype to float32.
   waveform = tf.cast(waveform, dtype=tf.float32)
@@ -135,8 +142,36 @@ fig, axes = plt.subplots(2, figsize=(12, 8))
 timescale = np.arange(waveform.shape[0])
 axes[0].plot(timescale, waveform.numpy())
 axes[0].set_title('Waveform')
-axes[0].set_xlim([0, 16000])
+axes[0].set_xlim([0, SOUND_LENGTH])
 
 plot_spectrogram(spectrogram.numpy(), axes[1])
 axes[1].set_title('Spectrogram')
+plt.show()
+
+
+def get_spectrogram_and_label_id(audio, label):
+  spectrogram = get_spectrogram(audio)
+  label_id = tf.argmax(label == commands)
+  return spectrogram, label_id
+
+
+spectrogram_ds = waveform_ds.map(
+  map_func=get_spectrogram_and_label_id,
+  num_parallel_calls=AUTOTUNE)
+
+
+rows = 3
+cols = 3
+n = rows*cols
+fig, axes = plt.subplots(rows, cols, figsize=(10, 10))
+
+for i, (spectrogram, label_id) in enumerate(spectrogram_ds.take(n)):
+  r = i // cols
+  c = i % cols
+  ax = axes[r][c]
+  
+  plot_spectrogram(spectrogram.numpy(), ax)
+  ax.set_title(commands[label_id.numpy()])
+  ax.axis('off')
+
 plt.show()
