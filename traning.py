@@ -28,7 +28,6 @@ print('Number of examples per label:',
 print('Example file tensor:', filenames[0])
 
 
-
 train_files = filenames[:100]
 val_files = filenames[100: 100 + 40]
 test_files = filenames[-40:]
@@ -39,12 +38,22 @@ print('Test set size', len(test_files))
 
 test_file = tf.io.read_file(DATASET_PATH+'/unknow/017.wav')
 test_audio, _ = tf.audio.decode_wav(contents=test_file)
+if test_audio.shape[0]<SOUND_LENGTH:
+  t0 = tf.tile([[0.0]],[SOUND_LENGTH-test_audio.shape[0],1])
+  test_audio = tf.concat([test_audio, t0],0)
+test_audio = tf.reshape(test_audio, [SOUND_LENGTH,1])
 print(test_audio.shape)
+print(test_audio)
 
 def decode_audio(audio_binary):
   # Decode WAV-encoded audio files to `float32` tensors, normalized
   # to the [-1.0, 1.0] range. Return `float32` audio and a sample rate.
+  print(audio_binary)
   audio, _ = tf.audio.decode_wav(contents=audio_binary)
+  print(audio)
+  print("audio.shape=",audio.shape)
+
+  print("audio.shape=",audio.shape)
   # Since all the data is single channel (mono), drop the `channels`
   # axis from the array.
   return tf.squeeze(audio, axis=-1)
@@ -60,14 +69,17 @@ def get_label(file_path):
 def get_waveform_and_label(file_path):
   label = get_label(file_path)
   audio_binary = tf.io.read_file(file_path)
+  print(file_path,label)
   waveform = decode_audio(audio_binary)
-  waveform = np.resize(waveform,(SOUND_LENGTH))
+  # waveform = np.resize(waveform, SOUND_LENGTH)
   return waveform, label
 
 AUTOTUNE = tf.data.AUTOTUNE
 
 files_ds = tf.data.Dataset.from_tensor_slices(train_files)
-
+print(train_files)
+for element in files_ds:
+  print(element)
 waveform_ds = files_ds.map(
     map_func=get_waveform_and_label,
     num_parallel_calls=AUTOTUNE)
@@ -115,6 +127,11 @@ def get_spectrogram(waveform):
 
 for waveform, label in waveform_ds.take(1):
   label = label.numpy().decode('utf-8')
+  print(waveform)
+  if waveform.shape[0]<SOUND_LENGTH:
+    t0 = tf.tile([[0.0]],[SOUND_LENGTH-waveform.shape[0],1])
+    waveform = tf.concat([waveform, t0],0)
+  print(waveform)
   spectrogram = get_spectrogram(waveform)
 
 print('Label:', label)
@@ -150,6 +167,12 @@ plt.show()
 
 
 def get_spectrogram_and_label_id(audio, label):
+  print(audio.shape)
+  print(audio)
+  if audio.shape[0]<SOUND_LENGTH:
+    t0 = tf.tile([[0.0]],[SOUND_LENGTH-audio.shape[0],1])
+    audio = tf.concat([audio, t0],0)
+
   spectrogram = get_spectrogram(audio)
   label_id = tf.argmax(label == commands)
   return spectrogram, label_id
