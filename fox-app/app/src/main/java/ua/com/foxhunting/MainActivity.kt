@@ -19,6 +19,8 @@ package ua.com.foxhunting
 // import com.google.firebase.auth.FirebaseAuth
 //import com.google.firebase.auth.ktx.auth
 // import com.google.firebase.firestore.ktx.firestore
+// import com.google.firebase.database.ServerValue
+// import com.google.firebase.ktx.Firebase
 import android.Manifest
 import android.accounts.Account
 import android.accounts.AccountManager
@@ -30,14 +32,17 @@ import android.location.LocationManager
 import android.media.AudioRecord
 import android.os.Bundle
 import android.util.Log
+import android.view.View
+import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.widget.addTextChangedListener
 import com.google.android.things.device.TimeManager
-// import com.google.firebase.database.ServerValue
-// import com.google.firebase.ktx.Firebase
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
 import org.tensorflow.lite.support.audio.TensorAudio
 import org.tensorflow.lite.support.label.Category
 import org.tensorflow.lite.task.audio.classifier.AudioClassifier
@@ -49,6 +54,7 @@ import kotlin.concurrent.scheduleAtFixedRate
 
 
 class MainActivity : AppCompatActivity(), LocationListener {
+    private var sampleRate: Int=0
     var TAG = "MainActivity"
     var USER_ID_KEY = "user_id"
     var LATTITUDE_KEY = "latitude"
@@ -69,6 +75,8 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private val locationPermissionCode = 2
     private lateinit var tvGpsLocation: TextView
     private lateinit var tvLog: TextView
+    private lateinit var editUserId: EditText
+
     private lateinit var tensor: TensorAudio;
     private lateinit var record: AudioRecord;
     private lateinit var classifier: AudioClassifier;
@@ -97,6 +105,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
         // Check if user is signed in (non-null) and update UI accordingly.
         //val currentUser = auth.currentUser
         //updateUI(currentUser)
+
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -120,6 +129,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
         // Initialize Firebase Auth
         // auth = Firebase.auth
         // [END initialize_auth]
+        editUserId.addTextChangedListener { userId = it.toString() }
 
         pukEvents = ArrayList()
         userId = ""
@@ -175,6 +185,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
         val format = classifier.requiredTensorAudioFormat
         val recorderSpecs = "Number Of Channels: ${format.channels}\n" +
                 "Sample Rate: ${format.sampleRate}"
+            sampleRate= format.sampleRate
         recorderSpecsTextView.text = recorderSpecs
 
         // TODO 3.3: Creating
@@ -230,7 +241,6 @@ class MainActivity : AppCompatActivity(), LocationListener {
                     if(model!=null && model.label==pushka){
                         val  currentTime = calendar.getTime();
                         var event = PukEvent()
-                        event.time = currentTime;
                         event.score = model.score;
                         if(curLatitude!=null) {
                             event.latitude = curLatitude
@@ -249,7 +259,13 @@ class MainActivity : AppCompatActivity(), LocationListener {
                         }
                         event.maxIndex = maxIndex;
                         event.maxValue = maxValue;
-                        pukEvents.add(event)
+                        // Add offset
+                        var offSet = (buffer.size-1-maxValue)*1000/sampleRate
+                        currentTime.time = (currentTime.time-offSet).toLong()
+                        event.time =currentTime
+
+
+                            pukEvents.add(event)
                         runOnUiThread {
                             val df: DateFormat = SimpleDateFormat("HH:mm:ss")
                             tvLog.text = df.format(event.time)+ " "+"%.3f".format(event.maxValue) + " "+" - ${model.label}\n" + tvLog.text
@@ -315,27 +331,34 @@ class MainActivity : AppCompatActivity(), LocationListener {
     }
     fun sendToDb(){
         Log.i("FirebaseDatabase", "Write!")
-        /*
-        val db = Firebase.firestore
+        val db = FirebaseFirestore.getInstance()
+
+
 
         for (event  in pukEvents){
             // Create a new user with a first and last name
             val lat= event.latitude?:curLatitude
             val lon= event.longitude?:curLongitude
-            val event: Map<String, Any> = HashMap()
-            event.put("time", event.time);
-            event.put("score", event.score);
-            event.put("latitude", lat);
-            event.put("longitude", lon);
-            event.put("userId", event.userId);
-            event.put("type", event.type);
-            event.put("maxIndex", event.maxIndex);
-            event.put("maxValue", event.maxValue);
-            event.put("created", ServerValue.TIMESTAMP);
-            event.put("createdLocal", calendar.getTime());
+            val ev: HashMap<String, Any> = HashMap()
+
+            event.time?.let {
+                ev.put("time", it)
+                ev.put("time_ms", it.time)
+            }
+            ev.put("score", event.score)
+            lat?.let { ev.put("latitude", it) }
+            lon?.let { ev.put("longitude", it) }
+            event.userId?.let { ev.put("userId", it) }
+            event.type?.let { ev.put("type", it) }
+            ev.put("maxIndex", event.maxIndex)
+            ev.put("maxValue", event.maxValue)
+             ev.put("created", FieldValue.serverTimestamp())
+            ev.put("createdLocal", calendar.getTime())
+            ev.put("createdLocal_mc", calendar.getTime().time)
             // Add a new document with a generated ID
+
             db.collection("events")
-                .add(event)
+                .add(ev)
                 .addOnSuccessListener { documentReference ->
                     Log.d(TAG, "DocumentSnapshot added with ID: ${documentReference.id}")
                 }
@@ -344,7 +367,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
                 }
         }
 
-         */
+
         pukEvents.clear()
     }
 }
