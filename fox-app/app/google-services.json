@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "130406928528",
+    "firebase_url": "https://foxhunter-173c1-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "foxhunter-173c1",
+    "storage_bucket": "foxhunter-173c1.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:130406928528:android:c8c23053a61f4101204815",
+        "android_client_info": {
+          "package_name": "ua.com.foxhunting"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "130406928528-nen1rgqqbt8gagqtals6vtqkbbaocod9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ua.com.foxhunting",
+            "certificate_hash": "e70d8c753ec8d8df7a64222f621fea6c9e0066fe"
+          }
+        },
+        {
+          "client_id": "130406928528-t0sebdikg4lopug26rsav1hrrim8443s.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1STm0zvDNoT9wdcy4FAybEkrcZ0xEFXA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "130406928528-t0sebdikg4lopug26rsav1hrrim8443s.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

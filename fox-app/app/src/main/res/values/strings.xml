@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Fox Hunter</string>
+    <string name="preference_user_id">userId</string>
+</resources>
