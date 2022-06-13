@@ -1,4 +1,8 @@
 <resources>
     <string name="app_name">Fox Hunter</string>
     <string name="preference_user_id">userId</string>
+    <string name="update_user_id">Update user id</string>
+    <string name="gps_starting">gps starting</string>
+    <string name="recording">Recording</string>
+    <string name="user_id">User Id</string>
 </resources>
