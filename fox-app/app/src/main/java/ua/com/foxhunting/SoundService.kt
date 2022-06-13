@@ -1,12 +1,8 @@
 package ua.com.foxhunting
 
-import android.Manifest
-import android.accounts.Account
-import android.accounts.AccountManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
@@ -15,8 +11,6 @@ import android.os.Binder
 import android.os.IBinder
 import android.util.Log
 import android.widget.Toast
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import org.tensorflow.lite.support.audio.TensorAudio
@@ -25,7 +19,6 @@ import org.tensorflow.lite.task.audio.classifier.AudioClassifier
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.collections.ArrayList
 import kotlin.concurrent.scheduleAtFixedRate
 
 class SoundService : Service(), LocationListener {
@@ -37,7 +30,6 @@ class SoundService : Service(), LocationListener {
 
     var LogOut:String =""
 
-    private lateinit var calendar: Calendar;
 
     private var sampleRate: Int=0
     var TAG = "SoundService"
@@ -59,6 +51,7 @@ class SoundService : Service(), LocationListener {
     private lateinit var classifier: AudioClassifier;
     lateinit var pukEvents: ArrayList<PukEvent>;
     private lateinit var rawEvents: ArrayList<PukEvent>;
+    lateinit var pukNotofocation: ArrayList<String>;
 
     var curLocation: Location?=null;
     var  curLatitude:Double?=null
@@ -90,9 +83,10 @@ class SoundService : Service(), LocationListener {
     }
     override fun onCreate() {
         // The service is being created
-        calendar = Calendar.getInstance();
+
         pukEvents = ArrayList()
         rawEvents = ArrayList()
+        pukNotofocation = ArrayList()
         var userSetting = getSharedPreferences(PREF_NAME,  MODE_PRIVATE);
         userId = userSetting.getString(USER_ID_KEY, UUID.randomUUID().toString()).toString()
         curLatitude = userSetting.getFloat(LATTITUDE_KEY, 0F).toDouble()
@@ -166,7 +160,8 @@ class SoundService : Service(), LocationListener {
                 if(modelOld==null || modelOld.label!=silence){
                     // Dont silence
                     if(model!=null && model.label==pushka){
-                        val  currentTime = calendar.getTime();
+                        val  currentTime = Date()
+
                         var event = PukEvent()
                         event.score = model.score;
                         if(curLatitude!=null) {
@@ -187,22 +182,17 @@ class SoundService : Service(), LocationListener {
                         event.maxIndex = maxIndex;
                         event.maxValue = maxValue;
                         // Add offset
-                        var offSet = (buffer.size-1-maxValue)*1000/sampleRate
+                        var offSet = (buffer.size-1-maxIndex)*1000/sampleRate
                         currentTime.time = (currentTime.time-offSet).toLong()
                         event.time =currentTime
 
 
                         rawEvents.add(event)
+                        sendToDb()
                         val df: DateFormat = SimpleDateFormat("HH:mm:ss")
                         val msg = df.format(event.time)+ " "+"%.3f".format(event.maxValue) + " "+" - ${model.label}"
-                        Toast.makeText(
-                            applicationContext,
-                            msg,
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        pukNotofocation.add(msg)
 
-
-                        sendToDb()
                     }
                 }
             }catch (e: Exception) {
@@ -211,12 +201,9 @@ class SoundService : Service(), LocationListener {
         }
 
     }
+
     override fun onBind(intent: Intent): IBinder {
-        val toast = Toast.makeText(
-            applicationContext,
-            "onBind ",
-            Toast.LENGTH_LONG
-        )
+
         return binder
     }
     override fun onUnbind(intent: Intent): Boolean {
@@ -244,8 +231,8 @@ class SoundService : Service(), LocationListener {
     fun sendToDb(){
         Log.i("FirebaseDatabase", "Write!")
         val db = FirebaseFirestore.getInstance()
-        val events = pukEvents
-        pukEvents = ArrayList<PukEvent>()
+        val events = rawEvents
+        rawEvents = ArrayList<PukEvent>()
 
 
         for (event  in events  ){
@@ -258,6 +245,7 @@ class SoundService : Service(), LocationListener {
                 ev.put("time", it)
                 ev.put("time_ms", it.time)
             }
+            val now = Date()
             ev.put("score", event.score)
             lat?.let { ev.put("latitude", it) }
             lon?.let { ev.put("longitude", it) }
@@ -266,8 +254,8 @@ class SoundService : Service(), LocationListener {
             ev.put("maxIndex", event.maxIndex)
             ev.put("maxValue", event.maxValue)
             ev.put("created", FieldValue.serverTimestamp())
-            ev.put("createdLocal", calendar.getTime())
-            ev.put("createdLocal_mc", calendar.getTime().time)
+            ev.put("createdLocal", now)
+            ev.put("createdLocal_mc", now.time)
             // Add a new document with a generated ID
 
             db.collection("events")
@@ -278,7 +266,7 @@ class SoundService : Service(), LocationListener {
                 }
                 .addOnFailureListener { e ->
                     Log.w(TAG, "Error adding document", e)
-                    pukEvents.add(event)
+                    rawEvents.add(event)
                 }
         }
     }

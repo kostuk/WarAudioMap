@@ -220,8 +220,8 @@ class MainActivity : AppCompatActivity() {
         Timer().scheduleAtFixedRate(1, 2000) {
             if(mBound){
                 runOnUiThread {
-                    tvLog.text =  mService.LogOut
-                    if(mService.curLocation!=null) {
+                    tvOutput.text =  mService.LogOut
+                    if(mService.curLatitude!=null) {
                         tvGpsLocation.text =
                             "Latitude: " + "%.3f".format(mService.curLatitude) + " , Longitude: " + "%.3f".format(
                                 mService.curLongitude
@@ -234,7 +234,16 @@ class MainActivity : AppCompatActivity() {
                         val df: DateFormat = SimpleDateFormat("HH:mm:ss")
                         events += df.format(event.time)+ " "+"%.3f".format(event.maxValue) + " "+" - ${event.type}\n"
                     }
-                    tvOutput.text = events;
+                    tvLog.text = events;
+                    if(mService.pukNotofocation.size>0){
+                        val m=mService.pukNotofocation.joinToString(separator = "\n") { it }
+                        Toast.makeText(
+                            applicationContext,
+                            m,
+                            Toast.LENGTH_LONG
+                        ).show()
+                        mService.pukNotofocation.clear()
+                    }
                 }
             }
         }
