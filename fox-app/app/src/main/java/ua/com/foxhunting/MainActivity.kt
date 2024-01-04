@@ -22,20 +22,20 @@ package ua.com.foxhunting
 // import com.google.firebase.database.ServerValue
 // import com.google.firebase.ktx.Firebase
 import android.Manifest
-import android.accounts.Account
-import android.accounts.AccountManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.location.Location
-import android.location.LocationListener
 import android.location.LocationManager
 import android.media.AudioRecord
+
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -43,24 +43,24 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.widget.addTextChangedListener
+import androidx.navigation.findNavController
+import androidx.navigation.ui.AppBarConfiguration
+import androidx.navigation.ui.navigateUp
+import androidx.navigation.ui.setupActionBarWithNavController
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.auth.api.identity.SignInClient
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.common.api.ApiException
+import com.google.android.material.snackbar.Snackbar
 import com.google.android.things.device.TimeManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.ktx.Firebase
 import org.tensorflow.lite.support.audio.TensorAudio
-import org.tensorflow.lite.support.label.Category
 import org.tensorflow.lite.task.audio.classifier.AudioClassifier
-import java.lang.Math.abs
+import ua.com.foxhunting.databinding.ActivityMainBinding
+import java.io.File
+import java.io.FileOutputStream
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -68,6 +68,9 @@ import kotlin.concurrent.scheduleAtFixedRate
 
 
 class MainActivity : AppCompatActivity() {
+    private lateinit var binding: ActivityMainBinding
+    private lateinit var appBarConfiguration: AppBarConfiguration
+
     private lateinit var  oneTapClient: SignInClient
     private var sampleRate: Int=0
     var TAG = "MainActivity"
@@ -82,21 +85,12 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var editUserId: EditText
 
-    private lateinit var tensor: TensorAudio;
-    private lateinit var record: AudioRecord;
-    private lateinit var classifier: AudioClassifier;
-    private lateinit var pukEvents: ArrayList<PukEvent>;
+
     private lateinit var mService: SoundService
     private var mBound: Boolean = false
 
-    lateinit var timeManager: TimeManager;
     lateinit var calendar: Calendar;
-    var curLocation:Location?=null;
-    var  curLatitude:Double?=null
-    var  curLongitude:Double?=null
     private lateinit var auth: FirebaseAuth
-    private val REQ_ONE_TAP = 2  // Can be any integer unique to the Activity
-    private var showOneTapUI = true
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
@@ -119,6 +113,15 @@ class MainActivity : AppCompatActivity() {
             mBound = false
         }
     }
+
+    override fun onStop() {
+        super.onStop();
+        if(mBound){
+            unbindService(connection);
+            mBound = false;
+        }
+    }
+
     override fun onStart() {
         super.onStart()
         // Check if user is signed in (non-null) and update UI accordingly.
@@ -126,14 +129,56 @@ class MainActivity : AppCompatActivity() {
         updateUI(currentUser)
         Intent(this, SoundService::class.java).also { intent ->
             bindService(intent, connection, Context.BIND_AUTO_CREATE)
+            startForegroundService(intent);
         }
+        // writeToFile()
+    }
 
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        menuInflater.inflate(R.menu.menu_main, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        return when (item.itemId) {
+            R.id.action_settings ->{
+                Snackbar.make(findViewById(R.id.activiy_main),
+                    "Select setting menu", Snackbar.LENGTH_LONG)
+                    .setAction("Action", null).show()
+
+                return true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    override fun onSupportNavigateUp(): Boolean {
+        val navController = findNavController(R.id.nav_host_fragment_content_main)
+        return navController.navigateUp(appBarConfiguration)
+                || super.onSupportNavigateUp()
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        setSupportActionBar(binding.toolbar)
+        val navController = findNavController(R.id.nav_host_fragment_content_main)
+        appBarConfiguration = AppBarConfiguration(navController.graph)
+        setupActionBarWithNavController(navController, appBarConfiguration)
+
+        binding.fab.setOnClickListener { view ->
+            Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
+                .setAction("Action", null).show()
+        }
+
         // [START config_signin]
         // Configure Google Sign In
+        /*
         oneTapClient = Identity.getSignInClient(this)
         var signInRequest = BeginSignInRequest.builder()
             .setGoogleIdTokenRequestOptions(
@@ -146,6 +191,7 @@ class MainActivity : AppCompatActivity() {
                 .build())
         oneTapClient.beginSignIn(signInRequest.build())
 
+         */
         // [END config_signin]
 
 
@@ -177,6 +223,11 @@ class MainActivity : AppCompatActivity() {
                 mService.userId = editUserId.text.toString()
                 mService.recorderSpecs
                 mService.saveSetting()
+                Toast.makeText(
+                    applicationContext,
+                    "UserId was changed ",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
         /*
@@ -220,21 +271,29 @@ class MainActivity : AppCompatActivity() {
         Timer().scheduleAtFixedRate(1, 2000) {
             if(mBound){
                 runOnUiThread {
-                    tvOutput.text =  mService.LogOut
-                    if(mService.curLatitude!=null) {
+                    try {
+                        tvOutput.text = mService.LogOut
+                        if (mService.curLatitude != null) {
+                            /*
                         tvGpsLocation.text =
                             "Latitude: " + "%.3f".format(mService.curLatitude) + " , Longitude: " + "%.3f".format(
                                 mService.curLongitude
                             )
-                    }else{
-                        tvGpsLocation.text="gsp ..."
-                    }
-                    var events:String=""
-                    for (event in mService.pukEvents.reversed()){
-                        val df: DateFormat = SimpleDateFormat("HH:mm:ss")
-                        events += df.format(event.time)+ " "+"%.3f".format(event.maxValue) + " "+" - ${event.type}\n"
-                    }
-                    tvLog.text = events;
+
+                         */
+                            tvGpsLocation.text = "online"
+                        } else {
+                            tvGpsLocation.text = " ..."
+                        }
+                        var events: String = ""
+                        for (event in mService.pukEvents.reversed()) {
+                            val df: DateFormat = SimpleDateFormat("HH:mm:ss")
+                            events += df.format(event.time) + " %.3f".format(event.score) + " %.3f".format(
+                                event.maxValue
+                            ) + "\n"
+                        }
+                        tvLog.text = events;
+                        /*
                     if(mService.pukNotofocation.size>0){
                         val m=mService.pukNotofocation.joinToString(separator = "\n") { it }
                         Toast.makeText(
@@ -243,6 +302,10 @@ class MainActivity : AppCompatActivity() {
                             Toast.LENGTH_LONG
                         ).show()
                         mService.pukNotofocation.clear()
+                    }
+                     */
+                    }catch (e:Exception){
+                        Log.i("mService",e.message.toString())
                     }
                 }
             }
@@ -306,5 +369,7 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Permission Denied", Toast.LENGTH_SHORT).show()
             }
         }
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
+
 }

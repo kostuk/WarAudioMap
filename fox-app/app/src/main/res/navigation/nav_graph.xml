@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/mainFragment">
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="ua.com.foxhunting.SettingsActivity.SettingsFragment"
+        android:label="Settings">
+        <action
+            android:id="@+id/action_settingsFragment_to_mainFragment"
+            app:destination="@id/mainFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/mainFragment"
+        android:name="ua.com.foxhunting.MainFragment"
+        android:label="Detector"
+        tools:layout="@layout/fragment_main">
+        <action
+            android:id="@+id/action_mainFragment_to_settingsFragment"
+            app:destination="@id/settingsFragment" />
+        <action
+            android:id="@+id/action_mainFragment_to_soundFragment"
+            app:destination="@id/soundFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/soundFragment"
+        android:name="ua.com.foxhunting.SoundFragment"
+        android:label="fragment_sound"
+        tools:layout="@layout/fragment_sound">
+        <action
+            android:id="@+id/action_soundFragment_to_mainFragment"
+            app:destination="@id/mainFragment" />
+    </fragment>
+</navigation>
