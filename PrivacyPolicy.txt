@@ -1,0 +1,7 @@
+FoxHunter turns your smartphone into a sound detector. 
+
+Sound data, time, date and GPS position data are transmitted to the server for further calculations of the sound source. 
+
+The User agrees to fart the type of event, GSM location and time for remote processing.
+
+For diagnostics, sound files up to 2 seconds will be recorded on the user's smartphone.
