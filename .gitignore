@@ -9,6 +9,29 @@ Icon
 
 # Thumbnails
 ._*
+# Python Virtual Environment
+.vevn/
+.vscode/
+.idea/
+__pycache__
+
+*.pyc
+
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Игнорировать логи и кэши
+*.log
+*.cache
 
 # Files that might appear in the root of a volume
 .DocumentRevisions-V100
