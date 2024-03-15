@@ -2,6 +2,7 @@
 raw_data_1s/
 raw_data_2s/
 raw_data_3s/
+temp/
 #### Mac-OS ####
 # General
 .DS_Store
